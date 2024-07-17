@@ -49,7 +49,7 @@ func ReadString(v any, e error) (string, error) {
 // ReadTo returns a setter function that will return an error if an error happens. This is
 // a bit convoluted because of limitation in Go's syntax, but this could be used as:
 //
-// err = ReadTo(&block)(target.RPC("eth_getBlockByNumber", "0x1b4", true))
+// err = ReadTo(&block)(target.Do("eth_getBlockByNumber", "0x1b4", true))
 func ReadTo(target any) func(v any, e error) error {
 	return func(v any, e error) error {
 		if e != nil {
