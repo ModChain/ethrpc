@@ -29,9 +29,9 @@ func Evaluate(ctx context.Context, servers ...string) (Handler, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	rech := make(chan *RPC, len(servers)+1)
-	errch := make(chan error, len(servers)+1)
 	count := len(servers)
+	rech := make(chan *RPC, count+1)
+	errch := make(chan error, count+1)
 
 	for _, s := range servers {
 		go func(s string) {
@@ -68,7 +68,7 @@ func Evaluate(ctx context.Context, servers ...string) (Handler, error) {
 				// end of the list but we got at least 1
 				return res, nil
 			}
-			// setup timer to end 200ms after the first response, so we don't spend too long waiting
+			// setup timer to end 200ms after the first successful response, so we don't spend too long waiting
 			if timer == nil {
 				timer = time.NewTimer(200 * time.Millisecond)
 				defer timer.Stop()
@@ -81,6 +81,7 @@ func Evaluate(ctx context.Context, servers ...string) (Handler, error) {
 				if len(res) > 0 {
 					return res, nil
 				} else {
+					// nothing to return either, so return the last error we got
 					return nil, e
 				}
 			}
