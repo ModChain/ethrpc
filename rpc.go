@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"sync/atomic"
+	"time"
 )
 
 // Note: see https://eth.wiki/json-rpc/API for APIs
@@ -16,7 +17,9 @@ var rpcId uint64
 
 // TODO support ws protocol
 type RPC struct {
-	host string
+	host  string
+	lag   time.Duration // how long it takes for this endpoint to respond to eth_blockNumber
+	block uint64        // latest block number
 }
 
 // New returns a new instance of RPC to perform requests to the given RPC endpoint
