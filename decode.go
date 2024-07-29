@@ -2,7 +2,9 @@ package ethrpc
 
 import (
 	"encoding/json"
+	"errors"
 	"math/big"
+	"strconv"
 )
 
 // ReadUint64 decodes the return value and passes it as a uint64.
@@ -11,6 +13,16 @@ import (
 func ReadUint64(v json.RawMessage, e error) (uint64, error) {
 	if e != nil {
 		return 0, e
+	}
+
+	if len(v) > 0 && v[0] == '"' {
+		// string
+		var v2 string
+		err := json.Unmarshal(v, &v2)
+		if err != nil {
+			return 0, err
+		}
+		return strconv.ParseUint(v2, 0, 64)
 	}
 
 	var v2 uint64
@@ -23,6 +35,20 @@ func ReadUint64(v json.RawMessage, e error) (uint64, error) {
 func ReadBigInt(v json.RawMessage, e error) (*big.Int, error) {
 	if e != nil {
 		return nil, e
+	}
+
+	if len(v) > 0 && v[0] == '"' {
+		// string
+		var v2 string
+		err := json.Unmarshal(v, &v2)
+		if err != nil {
+			return nil, err
+		}
+		res, ok := new(big.Int).SetString(v2, 0)
+		if !ok {
+			return nil, errors.New("invalid integer value")
+		}
+		return res, nil
 	}
 
 	res := new(big.Int)
