@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"sync/atomic"
@@ -46,12 +47,12 @@ func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMe
 
 	reqEnc, err := json.Marshal(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to encode %s request: %w", method, err)
 	}
 
 	hreq, err := http.NewRequestWithContext(ctx, "POST", r.host, bytes.NewReader(reqEnc))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate HTTP request for %s: %w", method, err)
 	}
 	hreq.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(reqEnc)), nil }
 	hreq.Header.Set("Content-Type", "application/json")
@@ -59,7 +60,7 @@ func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMe
 	// post it
 	resp, err := http.DefaultClient.Do(hreq)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while performing %s: %w", method, err)
 	}
 	defer resp.Body.Close()
 
@@ -68,11 +69,11 @@ func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMe
 	var res rpcResponse
 	err = reader.Decode(&res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode response to %s: %w", method, err)
 	}
 	if res.Error != nil {
 		//log.Printf("[RPC] ← Error: %s", res.Error.Error())
-		return nil, res.Error
+		return nil, fmt.Errorf("RPC error during %s: %w", method, res.Error)
 	}
 
 	//log.Printf("[RPC] ← %s", res.Result)
