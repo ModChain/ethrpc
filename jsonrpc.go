@@ -5,34 +5,34 @@ import (
 	"fmt"
 )
 
-type rpcRequest struct {
+type Request struct {
 	JsonRpc string `json:"jsonrpc"` // 2.0
 	Method  string `json:"method"`
 	Params  []any  `json:"params"`
 	Id      any    `json:"id"`
 }
 
-type rpcResponse struct {
+type Response struct {
 	JsonRpc string          `json:"jsonrpc"` // 2.0
 	Result  json.RawMessage `json:"result"`
-	Error   *rpcErrorObject `json:"error,omitempty"`
+	Error   *ErrorObject    `json:"error,omitempty"`
 	Id      any             `json:"id"`
 }
 
-// rpcResponseIntf is same as rpcResponse except Result is a any
-type rpcResponseIntf struct {
-	JsonRpc string          `json:"jsonrpc"` // 2.0
-	Result  any             `json:"result"`
-	Error   *rpcErrorObject `json:"error,omitempty"`
-	Id      any             `json:"id"`
+// RPCResponseIntf is same as rpcResponse except Result is a any
+type ResponseIntf struct {
+	JsonRpc string       `json:"jsonrpc"` // 2.0
+	Result  any          `json:"result"`
+	Error   *ErrorObject `json:"error,omitempty"`
+	Id      any          `json:"id"`
 }
 
-type rpcErrorObject struct {
+type ErrorObject struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
 
-func (e *rpcErrorObject) Error() string {
+func (e *ErrorObject) Error() string {
 	return fmt.Sprintf("jsonrpc error %d: %s", e.Code, e.Message)
 }

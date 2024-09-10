@@ -36,7 +36,7 @@ func (r *RPC) Do(method string, args ...any) (json.RawMessage, error) {
 // DoCtx performs a RPC request, taking an optional context that can be cancelled to stop the request
 func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMessage, error) {
 	// JSON RPC is simple
-	req := &rpcRequest{
+	req := &Request{
 		JsonRpc: "2.0",
 		Method:  method,
 		Params:  args,
@@ -66,7 +66,7 @@ func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMe
 
 	// decode response
 	reader := json.NewDecoder(resp.Body)
-	var res rpcResponse
+	var res *Response
 	err = reader.Decode(&res)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response to %s: %w", method, err)
