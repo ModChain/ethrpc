@@ -1,8 +1,13 @@
 package ethrpc
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"sync/atomic"
 )
 
 type Request struct {
@@ -10,6 +15,34 @@ type Request struct {
 	Method  string `json:"method"`
 	Params  []any  `json:"params"`
 	Id      any    `json:"id"`
+}
+
+// NewRequest makes a new [Request] fit to use with methods like Send.
+func NewRequest(method string, params ...any) *Request {
+	req := &Request{
+		JsonRpc: "2.0",
+		Method:  method,
+		Params:  params,
+		Id:      atomic.AddUint64(&rpcId, 1),
+	}
+	return req
+}
+
+// HTTPRequest returns a [http.Request] for the given json-rpc request.
+func (req *Request) HTTPRequest(ctx context.Context, host string) (*http.Request, error) {
+	reqEnc, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode %s request: %w", req.Method, err)
+	}
+
+	hreq, err := http.NewRequestWithContext(ctx, "POST", host, bytes.NewReader(reqEnc))
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate HTTP request for %s: %w", req.Method, err)
+	}
+	hreq.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(reqEnc)), nil }
+	hreq.Header.Set("Content-Type", "application/json")
+
+	return hreq, nil
 }
 
 type Response struct {

@@ -1,13 +1,10 @@
 package ethrpc
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"sync/atomic"
 	"time"
 )
 
@@ -18,14 +15,15 @@ var rpcId uint64
 
 // TODO support ws protocol
 type RPC struct {
-	host  string
-	lag   time.Duration // how long it takes for this endpoint to respond to eth_blockNumber
-	block uint64        // latest block number
+	host       string
+	lag        time.Duration // how long it takes for this endpoint to respond to eth_blockNumber
+	block      uint64        // latest block number
+	HTTPClient *http.Client
 }
 
 // New returns a new instance of RPC to perform requests to the given RPC endpoint
 func New(h string) *RPC {
-	return &RPC{host: h}
+	return &RPC{host: h, HTTPClient: http.DefaultClient}
 }
 
 // Do performs a RPC request
@@ -33,34 +31,28 @@ func (r *RPC) Do(method string, args ...any) (json.RawMessage, error) {
 	return r.DoCtx(context.Background(), method, args...)
 }
 
+func (r *RPC) Send(req *Request) (json.RawMessage, error) {
+	return r.SendCtx(context.Background(), req)
+}
+
 // DoCtx performs a RPC request, taking an optional context that can be cancelled to stop the request
 func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMessage, error) {
-	// JSON RPC is simple
-	req := &Request{
-		JsonRpc: "2.0",
-		Method:  method,
-		Params:  args,
-		Id:      atomic.AddUint64(&rpcId, 1),
-	}
+	return r.SendCtx(ctx, NewRequest(method, args...))
+}
 
+func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error) {
+	// JSON RPC over http is simple
 	//log.Printf("[RPC] → %s %v", method, args)
 
-	reqEnc, err := json.Marshal(req)
+	hreq, err := req.HTTPRequest(ctx, r.host)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode %s request: %w", method, err)
+		return nil, fmt.Errorf("failed to generate HTTP request for %s: %w", req.Method, err)
 	}
-
-	hreq, err := http.NewRequestWithContext(ctx, "POST", r.host, bytes.NewReader(reqEnc))
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate HTTP request for %s: %w", method, err)
-	}
-	hreq.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(reqEnc)), nil }
-	hreq.Header.Set("Content-Type", "application/json")
 
 	// post it
-	resp, err := http.DefaultClient.Do(hreq)
+	resp, err := r.HTTPClient.Do(hreq)
 	if err != nil {
-		return nil, fmt.Errorf("error while performing %s: %w", method, err)
+		return nil, fmt.Errorf("error while performing %s: %w", req.Method, err)
 	}
 	defer resp.Body.Close()
 
@@ -69,11 +61,11 @@ func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMe
 	var res *Response
 	err = reader.Decode(&res)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode response to %s: %w", method, err)
+		return nil, fmt.Errorf("failed to decode response to %s: %w", req.Method, err)
 	}
 	if res.Error != nil {
 		//log.Printf("[RPC] ← Error: %s", res.Error.Error())
-		return nil, fmt.Errorf("RPC error during %s: %w", method, res.Error)
+		return nil, fmt.Errorf("RPC error during %s: %w", req.Method, res.Error)
 	}
 
 	//log.Printf("[RPC] ← %s", res.Result)
