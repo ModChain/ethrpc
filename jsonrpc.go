@@ -19,6 +19,10 @@ type Request struct {
 
 // NewRequest makes a new [Request] fit to use with methods like Send.
 func NewRequest(method string, params ...any) *Request {
+	if params == nil {
+		// make sure it is not nil so json will encode it as "[]" and not "null"
+		params = []any{}
+	}
 	req := &Request{
 		JsonRpc: "2.0",
 		Method:  method,
