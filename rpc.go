@@ -22,11 +22,20 @@ type RPC struct {
 	lag        time.Duration // how long it takes for this endpoint to respond to eth_blockNumber
 	block      uint64        // latest block number
 	HTTPClient *http.Client
+	// for RPC auth
+	username string
+	password string
 }
 
 // New returns a new instance of RPC to perform requests to the given RPC endpoint
 func New(h string) *RPC {
 	return &RPC{host: h, HTTPClient: http.DefaultClient}
+}
+
+// SetBasicAuth sets basic auth params for all subsequent RPC requests
+func (r *RPC) SetBasicAuth(username, password string) {
+	r.username = username
+	r.password = password
 }
 
 // Do performs a RPC request
@@ -50,6 +59,10 @@ func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error
 	hreq, err := req.HTTPRequest(ctx, r.host)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate HTTP request for %s: %w", req.Method, err)
+	}
+
+	if r.username != "" || r.password != "" {
+		hreq.SetBasicAuth(r.username, r.password)
 	}
 
 	// post it
@@ -98,6 +111,10 @@ func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request,
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if r.username != "" || r.password != "" {
+		hreq.SetBasicAuth(r.username, r.password)
 	}
 
 	// post it
