@@ -1,9 +1,12 @@
 package ethrpc
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -73,10 +76,70 @@ func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error
 	return res.Result, nil
 }
 
+// To performs the request and puts the result into target
 func (r *RPC) To(target any, method string, args ...any) error {
 	v, err := r.Do(method, args...)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(v, target)
+}
+
+type ForwardOptions struct {
+	Pretty bool
+	Cache  time.Duration
+}
+
+// Forward will write the RPC response to the given [http.ResponseWriter].
+func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request, opts *ForwardOptions) {
+	// json rpc request forwarded to a response writer
+	// First, let's do the request
+	hreq, err := req.HTTPRequest(ctx, r.host)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// post it
+	resp, err := r.HTTPClient.Do(hreq)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	for k, v := range resp.Header {
+		rw.Header()[k] = v
+	}
+	rw.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+	if opts != nil && opts.Cache > 0 {
+		rw.Header().Set("Cache-Control", fmt.Sprintf("public; max-age=%d", opts.Cache/time.Second))
+		rw.Header().Set("Expires", time.Now().Add(opts.Cache).Format(time.RFC1123))
+	}
+
+	if opts != nil && opts.Pretty {
+		// remove Content-Length from headers
+		rw.Header().Del("Content-Length")
+
+		// send the rest
+		rw.WriteHeader(resp.StatusCode)
+		// special case: we need to format the response json
+		buf, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("[http] failed to read response: %s", err)
+			return
+		}
+		outbuf := &bytes.Buffer{}
+		err = json.Indent(outbuf, buf, "", "  ")
+		if err != nil {
+			rw.Write(buf)
+		} else {
+			io.Copy(rw, outbuf)
+		}
+		return
+	}
+
+	rw.WriteHeader(resp.StatusCode)
+	io.Copy(rw, resp.Body)
 }
