@@ -32,7 +32,7 @@ type RPC struct {
 
 // New returns a new instance of RPC to perform requests to the given RPC endpoint
 func New(h string) *RPC {
-	return &RPC{host: h, HTTPClient: http.DefaultClient}
+	return &RPC{host: h, HTTPClient: http.DefaultClient, override: make(map[string]*typutil.Callable)}
 }
 
 // Override allows redirecting calls to a RPC method to a standard go function
