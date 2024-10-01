@@ -35,6 +35,7 @@ func New(h string) *RPC {
 	return &RPC{host: h, HTTPClient: http.DefaultClient}
 }
 
+// Override allows redirecting calls to a RPC method to a standard go function
 func (r *RPC) Override(method string, fnc any) {
 	r.override[method] = typutil.Func(fnc)
 }
