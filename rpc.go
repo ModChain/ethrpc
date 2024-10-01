@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/KarpelesLab/typutil"
 )
 
 // Note: see https://eth.wiki/json-rpc/API for APIs
@@ -25,11 +27,16 @@ type RPC struct {
 	// for RPC auth
 	username string
 	password string
+	override map[string]*typutil.Callable
 }
 
 // New returns a new instance of RPC to perform requests to the given RPC endpoint
 func New(h string) *RPC {
 	return &RPC{host: h, HTTPClient: http.DefaultClient}
+}
+
+func (r *RPC) Override(method string, fnc any) {
+	r.override[method] = typutil.Func(fnc)
 }
 
 // SetBasicAuth sets basic auth params for all subsequent RPC requests
@@ -55,6 +62,14 @@ func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMe
 func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error) {
 	// JSON RPC over http is simple
 	//log.Printf("[RPC] → %s %v", method, args)
+
+	if f, ok := r.override[req.Method]; ok {
+		res, err := f.CallArg(ctx, req.Params...)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(res)
+	}
 
 	hreq, err := req.HTTPRequest(ctx, r.host)
 	if err != nil {
