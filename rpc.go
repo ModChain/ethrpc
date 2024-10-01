@@ -120,6 +120,27 @@ type ForwardOptions struct {
 
 // Forward will write the RPC response to the given [http.ResponseWriter].
 func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request, opts *ForwardOptions) {
+	if f, ok := r.override[req.Method]; ok {
+		// do not forward but run locally
+		res, err := f.CallArg(ctx, req.Params...)
+		if err != nil {
+			http.Error(rw, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rw.Header().Set("Content-Type", "application/json")
+		rw.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		if opts != nil && opts.Cache > 0 {
+			rw.Header().Set("Cache-Control", fmt.Sprintf("public; max-age=%d", opts.Cache/time.Second))
+			rw.Header().Set("Expires", time.Now().Add(opts.Cache).Format(time.RFC1123))
+		}
+		enc := json.NewEncoder(rw)
+		if opts != nil && opts.Pretty {
+			enc.SetIndent("", "    ")
+		}
+		enc.Encode(res)
+		return
+	}
+
 	// json rpc request forwarded to a response writer
 	// First, let's do the request
 	hreq, err := req.HTTPRequest(ctx, r.host)
