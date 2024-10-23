@@ -138,7 +138,7 @@ func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request,
 		if opts != nil && opts.Pretty {
 			enc.SetIndent("", "    ")
 		}
-		enc.Encode(res)
+		enc.Encode(&ResponseIntf{JsonRpc: "2.0", Result: res, Id: req.Id})
 		return
 	}
 
