@@ -123,11 +123,6 @@ type ForwardOptions struct {
 func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request, opts *ForwardOptions) {
 	if f, ok := r.override[req.Method]; ok {
 		// do not forward but run locally
-		res, err := f.CallArg(ctx, req.Params...)
-		if err != nil {
-			http.Error(rw, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		rw.Header().Set("Content-Type", "application/json")
 		rw.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		if opts != nil && opts.Cache > 0 {
@@ -137,6 +132,11 @@ func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request,
 		enc := json.NewEncoder(rw)
 		if opts != nil && opts.Pretty {
 			enc.SetIndent("", "    ")
+		}
+		res, err := f.CallArg(ctx, req.Params...)
+		if err != nil {
+			enc.Encode(req.makeError(err))
+			return
 		}
 		enc.Encode(&ResponseIntf{JsonRpc: "2.0", Result: res, Id: req.Id})
 		return

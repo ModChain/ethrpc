@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,6 +48,21 @@ func (req *Request) HTTPRequest(ctx context.Context, host string) (*http.Request
 	hreq.Header.Set("Content-Type", "application/json")
 
 	return hreq, nil
+}
+
+func (r *Request) makeError(e error) *ResponseIntf {
+	res := &ResponseIntf{
+		JsonRpc: "2.0",
+		Id:      r.Id,
+	}
+
+	if !errors.As(e, &res.Error) {
+		res.Error = &ErrorObject{
+			Message: e.Error(),
+			Code:    -32603,
+		}
+	}
+	return res
 }
 
 type Response struct {
