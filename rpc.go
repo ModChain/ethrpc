@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"time"
@@ -70,6 +71,11 @@ func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error
 			return nil, err
 		}
 		return json.Marshal(res)
+	}
+
+	if r.host == "" {
+		// special case, we only process override, anything else will be not found
+		return nil, fs.ErrNotExist
 	}
 
 	hreq, err := req.HTTPRequest(ctx, r.host)
@@ -139,6 +145,12 @@ func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request,
 			return
 		}
 		enc.Encode(&ResponseIntf{JsonRpc: "2.0", Result: res, Id: req.Id})
+		return
+	}
+
+	if r.host == "" {
+		// not found
+		http.Error(rw, "404 page not found", http.StatusNotFound)
 		return
 	}
 
