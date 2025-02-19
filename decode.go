@@ -79,3 +79,13 @@ func ReadTo(target any) func(v json.RawMessage, e error) error {
 		return json.Unmarshal(v, target)
 	}
 }
+
+func ReadAs[T any](v json.RawMessage, e error) (T, error) {
+	var v2 T
+	if e != nil {
+		return v2, e
+	}
+
+	err := json.Unmarshal(v, &v2)
+	return v2, err
+}
