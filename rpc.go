@@ -53,6 +53,12 @@ func (r *RPC) Do(method string, args ...any) (json.RawMessage, error) {
 	return r.DoCtx(context.Background(), method, args...)
 }
 
+// DoNamed performs a RPC request using named arguments
+func (r *RPC) DoNamed(method string, args map[string]any) (json.RawMessage, error) {
+	return r.DoNamedCtx(context.Background(), method, args)
+}
+
+// Send sends a raw request for processing
 func (r *RPC) Send(req *Request) (json.RawMessage, error) {
 	return r.SendCtx(context.Background(), req)
 }
@@ -60,6 +66,11 @@ func (r *RPC) Send(req *Request) (json.RawMessage, error) {
 // DoCtx performs a RPC request, taking an optional context that can be cancelled to stop the request
 func (r *RPC) DoCtx(ctx context.Context, method string, args ...any) (json.RawMessage, error) {
 	return r.SendCtx(ctx, NewRequest(method, args...))
+}
+
+// DoNamedCtx performs a RPC request using named arguments, taking an optional context that can be cancelled to stop the request
+func (r *RPC) DoNamedCtx(ctx context.Context, method string, args map[string]any) (json.RawMessage, error) {
+	return r.SendCtx(ctx, NewRequest(method, args))
 }
 
 func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error) {
