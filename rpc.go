@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -66,11 +67,14 @@ func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error
 	//log.Printf("[RPC] → %s %v", method, args)
 
 	if f, ok := r.override[req.Method]; ok {
-		res, err := f.CallArg(ctx, req.Params...)
-		if err != nil {
-			return nil, err
+		if params, ok := req.Params.([]any); ok {
+			res, err := f.CallArg(ctx, params...)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(res)
 		}
-		return json.Marshal(res)
+		return nil, errors.New("function requires positional arguments instead of named arguments")
 	}
 
 	if r.host == "" {
@@ -139,12 +143,18 @@ func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request,
 		if opts != nil && opts.Pretty {
 			enc.SetIndent("", "    ")
 		}
-		res, err := f.CallArg(ctx, req.Params...)
-		if err != nil {
-			enc.Encode(req.makeError(err))
-			return
+		if params, ok := req.Params.([]any); ok {
+			res, err := f.CallArg(ctx, params...)
+			if err != nil {
+				rw.WriteHeader(http.StatusInternalServerError)
+				enc.Encode(req.makeError(err))
+				return
+			}
+			enc.Encode(&ResponseIntf{JsonRpc: "2.0", Result: res, Id: req.Id})
+		} else {
+			rw.WriteHeader(http.StatusBadRequest)
+			enc.Encode(req.makeError(errors.New("function only supports positional arguments")))
 		}
-		enc.Encode(&ResponseIntf{JsonRpc: "2.0", Result: res, Id: req.Id})
 		return
 	}
 

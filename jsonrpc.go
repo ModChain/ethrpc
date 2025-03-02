@@ -14,7 +14,7 @@ import (
 type Request struct {
 	JsonRpc string `json:"jsonrpc"` // 2.0
 	Method  string `json:"method"`
-	Params  []any  `json:"params"`
+	Params  any    `json:"params"`
 	Id      any    `json:"id"`
 }
 
