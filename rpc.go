@@ -78,6 +78,9 @@ func (r *RPC) SendCtx(ctx context.Context, req *Request) (json.RawMessage, error
 	//log.Printf("[RPC] → %s %v", method, args)
 
 	if f, ok := r.override[req.Method]; ok {
+		if req.Params == nil {
+			req.Params = []any{}
+		}
 		if params, ok := req.Params.([]any); ok {
 			res, err := f.CallArg(ctx, params...)
 			if err != nil {
@@ -153,6 +156,9 @@ func (r *RPC) Forward(ctx context.Context, rw http.ResponseWriter, req *Request,
 		enc := json.NewEncoder(rw)
 		if opts != nil && opts.Pretty {
 			enc.SetIndent("", "    ")
+		}
+		if req.Params == nil {
+			req.Params = []any{}
 		}
 		if params, ok := req.Params.([]any); ok {
 			res, err := f.CallArg(ctx, params...)
