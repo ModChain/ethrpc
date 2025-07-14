@@ -47,6 +47,11 @@ func (r *RPC) SetHost(host string) {
 	r.host = host
 }
 
+// GetHost returns the host as configured
+func (r *RPC) GetHost() string {
+	return r.host
+}
+
 // SetBasicAuth sets basic auth params for all subsequent RPC requests
 func (r *RPC) SetBasicAuth(username, password string) {
 	r.username = username
