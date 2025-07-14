@@ -42,6 +42,11 @@ func (r *RPC) Override(method string, fnc any) {
 	r.override[method] = typutil.Func(fnc)
 }
 
+// SetHost sets the host requests are sent to for subsequent RPC requests
+func (r *RPC) SetHost(host string) {
+	r.host = host
+}
+
 // SetBasicAuth sets basic auth params for all subsequent RPC requests
 func (r *RPC) SetBasicAuth(username, password string) {
 	r.username = username
